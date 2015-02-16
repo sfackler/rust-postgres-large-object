@@ -4,7 +4,7 @@
 
 A crate providing access to the Postgres large object API.
 
-Documentation is available [here](https://sfackler.github.io/rust-postrgres-large-object/doc/postgres_large_object).
+Documentation is available [here](https://sfackler.github.io/rust-postgres-large-object/doc/postgres_large_object).
 
 # Example
 
