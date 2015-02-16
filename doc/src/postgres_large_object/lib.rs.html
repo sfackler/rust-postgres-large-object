@@ -361,8 +361,72 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
 </pre><pre class='rust '>
 <span class='doccomment'>//! A crate providing access to the Postgres large object API.</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! # Example</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! ```rust,no_run</span>
+<span class='doccomment'>//! extern crate postgres;</span>
+<span class='doccomment'>//! extern crate postgres_large_object;</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! use std::old_path::Path;</span>
+<span class='doccomment'>//! use std::old_io::fs::File;</span>
+<span class='doccomment'>//! use std::old_io::util;</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! use postgres::{Connection, SslMode};</span>
+<span class='doccomment'>//! use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//! fn main() {</span>
+<span class='doccomment'>//!     let conn = Connection::connect(&quot;postgres://postgres@localhost&quot;, &amp;SslMode::None).unwrap();</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//!     let mut file = File::open(&amp;Path::new(&quot;vacation_photos.tar.gz&quot;)).unwrap();</span>
+<span class='doccomment'>//!     let trans = conn.transaction().unwrap();</span>
+<span class='doccomment'>//!     let oid = trans.create_large_object().unwrap();</span>
+<span class='doccomment'>//!     {</span>
+<span class='doccomment'>//!         let mut large_object = trans.open_large_object(oid, Mode::Write).unwrap();</span>
+<span class='doccomment'>//!         util::copy(&amp;mut file, &amp;mut large_object).unwrap();</span>
+<span class='doccomment'>//!     }</span>
+<span class='doccomment'>//!     trans.commit().unwrap();</span>
+<span class='doccomment'>//!</span>
+<span class='doccomment'>//!     let mut file = File::create(&amp;Path::new(&quot;vacation_photos_copy.tar.gz&quot;)).unwrap();</span>
+<span class='doccomment'>//!     let trans = conn.transaction().unwrap();</span>
+<span class='doccomment'>//!     let mut large_object = trans.open_large_object(oid, Mode::Read).unwrap();</span>
+<span class='doccomment'>//!     util::copy(&amp;mut large_object, &amp;mut file).unwrap();</span>
+<span class='doccomment'>//! }</span>
+<span class='doccomment'>//! ```</span>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>unsafe_destructor</span>, <span class='ident'>io</span>, <span class='ident'>core</span>)]</span>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>doc</span>(<span class='ident'>html_root_url</span><span class='op'>=</span><span class='string'>&quot;https://sfackler.github.io/rust-postgres-large-object/doc&quot;</span>)]</span>
 
