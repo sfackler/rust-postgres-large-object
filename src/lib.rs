@@ -1,5 +1,6 @@
 //! A crate providing access to the Postgres large object API.
 #![feature(unsafe_destructor, io, core)]
+#![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
 
