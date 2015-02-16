@@ -3,7 +3,7 @@ addons:
   postgresql: 9.4
 script:
 - cargo test
-- (sudo service postgresql stop && sudo service postgresql start 9.1)
+- sudo service postgresql stop && sudo service postgresql start 9.1
 - cargo test
 - cargo doc --no-deps
 after_success:
