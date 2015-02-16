@@ -8,7 +8,7 @@ Documentation is available [here](https://sfackler.github.io/rust-postrgres-larg
 
 # Example
 
-```rust,no_run
+```rust
 extern crate postgres;
 extern crate postgres_large_object;
 
