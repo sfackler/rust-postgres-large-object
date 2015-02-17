@@ -36,11 +36,12 @@
 
 extern crate postgres;
 
-use std::old_io::{self, IoResult, IoError, IoErrorKind, SeekStyle};
-use std::i32;
-use std::slice::bytes;
 use std::cmp;
+use std::fmt;
+use std::i32;
 use std::num::FromPrimitive;
+use std::old_io::{self, IoResult, IoError, IoErrorKind, SeekStyle};
+use std::slice::bytes;
 
 use postgres::{Oid, Error, Result, Transaction, GenericConnection};
 
@@ -69,6 +70,7 @@ impl<T: GenericConnection> LargeObjectExt for T {
 ///
 /// Note that Postgres currently does not make any distinction between the
 /// `Write` and `ReadWrite` modes.
+#[derive(Debug)]
 pub enum Mode {
     /// An object opened in this mode may only be read from.
     Read,
@@ -132,6 +134,12 @@ pub struct LargeObject<'a> {
     fd: i32,
     has_64: bool,
     finished: bool,
+}
+
+impl<'a> fmt::Debug for LargeObject<'a> {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "LargeObject {{ fd: {:?}, transaction: {:?} }}", self.fd, self.trans)
+    }
 }
 
 #[unsafe_destructor]
