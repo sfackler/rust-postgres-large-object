@@ -393,6 +393,14 @@
 <span id="351">351</span>
 <span id="352">352</span>
 <span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
 </pre><pre class='rust '>
 <span class='doccomment'>//! A crate providing access to the Postgres large object API.</span>
 <span class='doccomment'>//!</span>
@@ -432,11 +440,12 @@
 
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>postgres</span>;
 
-<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>old_io</span>::{<span class='self'>self</span>, <span class='ident'>IoResult</span>, <span class='ident'>IoError</span>, <span class='ident'>IoErrorKind</span>, <span class='ident'>SeekStyle</span>};
-<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>i32</span>;
-<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>slice</span>::<span class='ident'>bytes</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>cmp</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>fmt</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>i32</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>num</span>::<span class='ident'>FromPrimitive</span>;
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>old_io</span>::{<span class='self'>self</span>, <span class='ident'>IoResult</span>, <span class='ident'>IoError</span>, <span class='ident'>IoErrorKind</span>, <span class='ident'>SeekStyle</span>};
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>slice</span>::<span class='ident'>bytes</span>;
 
 <span class='kw'>use</span> <span class='ident'>postgres</span>::{<span class='ident'>Oid</span>, <span class='ident'>Error</span>, <span class='prelude-ty'>Result</span>, <span class='ident'>Transaction</span>, <span class='ident'>GenericConnection</span>};
 
@@ -465,6 +474,7 @@
 <span class='doccomment'>///</span>
 <span class='doccomment'>/// Note that Postgres currently does not make any distinction between the</span>
 <span class='doccomment'>/// `Write` and `ReadWrite` modes.</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>enum</span> <span class='ident'>Mode</span> {
     <span class='doccomment'>/// An object opened in this mode may only be read from.</span>
     <span class='ident'>Read</span>,
@@ -528,6 +538,12 @@
     <span class='ident'>fd</span>: <span class='ident'>i32</span>,
     <span class='ident'>has_64</span>: <span class='ident'>bool</span>,
     <span class='ident'>finished</span>: <span class='ident'>bool</span>,
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> <span class='ident'>fmt</span>::<span class='ident'>Debug</span> <span class='kw'>for</span> <span class='ident'>LargeObject</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> {
+    <span class='kw'>fn</span> <span class='ident'>fmt</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>fmt</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>fmt</span>::<span class='ident'>Formatter</span>) <span class='op'>-&gt;</span> <span class='ident'>fmt</span>::<span class='prelude-ty'>Result</span> {
+        <span class='macro'>write</span><span class='macro'>!</span>(<span class='ident'>fmt</span>, <span class='string'>&quot;LargeObject {{ fd: {:?}, transaction: {:?} }}&quot;</span>, <span class='self'>self</span>.<span class='ident'>fd</span>, <span class='self'>self</span>.<span class='ident'>trans</span>)
+    }
 }
 
 <span class='attribute'>#[<span class='ident'>unsafe_destructor</span>]</span>
