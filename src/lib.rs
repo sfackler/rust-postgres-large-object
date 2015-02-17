@@ -41,6 +41,7 @@ use std::fmt;
 use std::i32;
 use std::num::FromPrimitive;
 use std::old_io::{self, IoResult, IoError, IoErrorKind, SeekStyle};
+use std::io;
 use std::slice::bytes;
 
 use postgres::{Oid, Error, Result, Transaction, GenericConnection};
@@ -115,7 +116,7 @@ impl<'conn> LargeObjectTransactionExt for Transaction<'conn> {
     }
 }
 
-macro_rules! try_io {
+macro_rules! try_old_io {
     ($e:expr) => {
         match $e {
             Ok(ok) => ok,
@@ -124,6 +125,17 @@ macro_rules! try_io {
                 desc: "error communicating with server",
                 detail: Some(format!("{}", e)),
             })
+        }
+    }
+}
+
+macro_rules! try_io {
+    ($e:expr) => {
+        match $e {
+            Ok(ok) => ok,
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other,
+                                                "error communicating with server",
+                                                Some(format!("{}", e))))
         }
     }
 }
@@ -193,9 +205,9 @@ impl<'a> LargeObject<'a> {
 
 impl<'a> Reader for LargeObject<'a> {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
+        let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let out: Vec<u8> = try_io!(stmt.query(&[&self.fd, &cap])).next().unwrap().get(0);
+        let out: Vec<u8> = try_old_io!(stmt.query(&[&self.fd, &cap])).next().unwrap().get(0);
 
         if !buf.is_empty() && out.is_empty() {
             return Err(old_io::standard_error(IoErrorKind::EndOfFile));
@@ -206,13 +218,24 @@ impl<'a> Reader for LargeObject<'a> {
     }
 }
 
+impl<'a> io::Read for LargeObject<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
+        let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
+        let out: Vec<u8> = try_io!(stmt.query(&[&self.fd, &cap])).next().unwrap().get(0);
+
+        bytes::copy_memory(buf, &out);
+        Ok(out.len())
+    }
+}
+
 impl<'a> Writer for LargeObject<'a> {
     fn write_all(&mut self, mut buf: &[u8]) -> IoResult<()> {
-        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lowrite($1, $2)"));
+        let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lowrite($1, $2)"));
 
         while !buf.is_empty() {
             let cap = cmp::min(buf.len(), i32::MAX as usize);
-            try_io!(stmt.execute(&[&self.fd, &&buf[..cap]]));
+            try_old_io!(stmt.execute(&[&self.fd, &&buf[..cap]]));
             buf = &buf[cap..];
         }
 
@@ -220,14 +243,27 @@ impl<'a> Writer for LargeObject<'a> {
     }
 }
 
+impl<'a> io::Write for LargeObject<'a> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lowrite($1, $2)"));
+        let cap = cmp::min(buf.len(), i32::MAX as usize);
+        try_io!(stmt.execute(&[&self.fd, &&buf[..cap]]));
+        Ok(cap)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+}
+
 impl<'a> Seek for LargeObject<'a> {
     fn tell(&self) -> IoResult<u64> {
         if self.has_64 {
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell64($1)"));
-            Ok(try_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i64>(0) as u64)
+            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell64($1)"));
+            Ok(try_old_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i64>(0) as u64)
         } else {
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell($1)"));
-            Ok(try_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i32>(0) as u64)
+            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell($1)"));
+            Ok(try_old_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i32>(0) as u64)
         }
     }
 
@@ -239,8 +275,8 @@ impl<'a> Seek for LargeObject<'a> {
         };
 
         if self.has_64 {
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            try_io!(stmt.execute(&[&self.fd, &pos, &kind]));
+            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
+            try_old_io!(stmt.execute(&[&self.fd, &pos, &kind]));
         } else {
             let pos: i32 = match FromPrimitive::from_i64(pos) {
                 Some(pos) => pos,
@@ -250,17 +286,50 @@ impl<'a> Seek for LargeObject<'a> {
                     detail: None,
                 }),
             };
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            try_io!(stmt.execute(&[&self.fd, &pos, &kind]));
+            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
+            try_old_io!(stmt.execute(&[&self.fd, &pos, &kind]));
         }
 
         Ok(())
     }
 }
 
+impl<'a> io::Seek for LargeObject<'a> {
+    fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
+        let (kind, pos) = match pos {
+            io::SeekFrom::Start(pos) => {
+                let pos = match FromPrimitive::from_u64(pos) {
+                    Some(pos) => pos,
+                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                      "cannot seek more than 2^63 bytes",
+                                                      None)),
+                };
+                (0, pos)
+            }
+            io::SeekFrom::Current(pos) => (1, pos),
+            io::SeekFrom::End(pos) => (2, pos),
+        };
+
+        if self.has_64 {
+            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
+            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).next().unwrap().get::<_, i64>(0) as u64)
+        } else {
+            let pos: i32 = match FromPrimitive::from_i64(pos) {
+                Some(pos) => pos,
+                None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                                  "cannot seek more than 2^31 bytes",
+                                                  None)),
+            };
+            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
+            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).next().unwrap().get::<_, i32>(0) as u64)
+        }
+    }
+}
+
 #[cfg(test)]
+#[no_implicit_prelude]
 mod test {
-    use std::old_io::SeekStyle;
+    use std::result::Result::{Ok, Err};
     use postgres::{Connection, SslMode, SqlState, Error};
 
     use {LargeObjectExt, LargeObjectTransactionExt, Mode};
@@ -303,7 +372,9 @@ mod test {
     }
 
     #[test]
-    fn test_write_read() {
+    fn test_write_read_old_io() {
+        use std::old_io::{Writer, Reader};
+
         let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
@@ -314,7 +385,24 @@ mod test {
     }
 
     #[test]
-    fn test_seek_tell() {
+    fn test_write_read() {
+        use std::io::{Write, Read};
+
+        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let trans = conn.transaction().unwrap();
+        let oid = trans.create_large_object().unwrap();
+        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
+        lo.write_all(b"hello world!!!").unwrap();
+        let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
+        let mut out = vec![];
+        lo.read_to_end(&mut out).unwrap();
+        assert_eq!(b"hello world!!!", out);
+    }
+
+    #[test]
+    fn test_seek_tell_old_io() {
+        use std::old_io::{Writer, Reader, Seek, SeekStyle};
+
         let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
@@ -335,7 +423,33 @@ mod test {
     }
 
     #[test]
-    fn test_write_with_read_fd() {
+    fn test_seek_tell() {
+        use std::io::{Write, Read, Seek, SeekFrom};
+
+        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let trans = conn.transaction().unwrap();
+        let oid = trans.create_large_object().unwrap();
+        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
+        lo.write_all(b"hello world!!!").unwrap();
+
+        assert_eq!(14, lo.seek(SeekFrom::Current(0)).unwrap());
+        assert_eq!(1, lo.seek(SeekFrom::Start(1)).unwrap());
+        let mut buf = [0];
+        assert_eq!(1, lo.read(&mut buf).unwrap());
+        assert_eq!(b'e', buf[0]);
+        assert_eq!(2, lo.seek(SeekFrom::Current(0)).unwrap());
+        assert_eq!(10, lo.seek(SeekFrom::End(-4)).unwrap());
+        assert_eq!(1, lo.read(&mut buf).unwrap());
+        assert_eq!(b'd', buf[0]);
+        assert_eq!(8, lo.seek(SeekFrom::Current(-3)).unwrap());
+        assert_eq!(1, lo.read(&mut buf).unwrap());
+        assert_eq!(b'r', buf[0]);
+    }
+
+    #[test]
+    fn test_write_with_read_fd_old_io() {
+        use std::old_io::Writer;
+
         let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
@@ -344,7 +458,20 @@ mod test {
     }
 
     #[test]
-    fn test_truncate() {
+    fn test_write_with_read_fd() {
+        use std::io::Write;
+
+        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let trans = conn.transaction().unwrap();
+        let oid = trans.create_large_object().unwrap();
+        let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
+        assert!(lo.write_all(b"hello world!!!").is_err());
+    }
+
+    #[test]
+    fn test_truncate_old_io() {
+        use std::old_io::{Seek, SeekStyle, Writer, Reader};
+
         let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
@@ -357,5 +484,27 @@ mod test {
         lo.truncate(10).unwrap();
         lo.seek(0, SeekStyle::SeekSet).unwrap();
         assert_eq!(b"hello\0\0\0\0\0", lo.read_to_end().unwrap());
+    }
+
+    #[test]
+    fn test_truncate() {
+        use std::io::{Seek, SeekFrom, Write, Read};
+
+        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let trans = conn.transaction().unwrap();
+        let oid = trans.create_large_object().unwrap();
+        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
+        lo.write_all(b"hello world!!!").unwrap();
+
+        lo.truncate(5).unwrap();
+        lo.seek(SeekFrom::Start(0)).unwrap();
+        let mut buf = vec![];
+        lo.read_to_end(&mut buf).unwrap();
+        assert_eq!(b"hello", buf);
+        lo.truncate(10).unwrap();
+        lo.seek(SeekFrom::Start(0)).unwrap();
+        buf.clear();
+        lo.read_to_end(&mut buf).unwrap();
+        assert_eq!(b"hello\0\0\0\0\0", buf);
     }
 }
