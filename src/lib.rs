@@ -31,7 +31,7 @@
 //!     util::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![feature(unsafe_destructor, io, core)]
+#![feature(unsafe_destructor, io, old_io, core)]
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
@@ -207,7 +207,8 @@ impl<'a> Reader for LargeObject<'a> {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
         let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let out: Vec<u8> = try_old_io!(stmt.query(&[&self.fd, &cap])).next().unwrap().get(0);
+        let row = try_old_io!(stmt.query(&[&self.fd, &cap])).next().unwrap();
+        let out = row.get_bytes(0).unwrap();
 
         if !buf.is_empty() && out.is_empty() {
             return Err(old_io::standard_error(IoErrorKind::EndOfFile));
@@ -222,7 +223,8 @@ impl<'a> io::Read for LargeObject<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let out: Vec<u8> = try_io!(stmt.query(&[&self.fd, &cap])).next().unwrap().get(0);
+        let row = try_io!(stmt.query(&[&self.fd, &cap])).next().unwrap();
+        let out = row.get_bytes(0).unwrap();
 
         bytes::copy_memory(buf, &out);
         Ok(out.len())
