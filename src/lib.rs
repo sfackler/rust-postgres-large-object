@@ -6,9 +6,8 @@
 //! extern crate postgres;
 //! extern crate postgres_large_object;
 //!
-//! use std::old_path::Path;
-//! use std::old_io::fs::File;
-//! use std::old_io::util;
+//! use std::fs::File;
+//! use std::io;
 //!
 //! use postgres::{Connection, SslMode};
 //! use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};
@@ -16,22 +15,22 @@
 //! fn main() {
 //!     let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
 //!
-//!     let mut file = File::open(&Path::new("vacation_photos.tar.gz")).unwrap();
+//!     let mut file = File::open("vacation_photos.tar.gz").unwrap();
 //!     let trans = conn.transaction().unwrap();
 //!     let oid = trans.create_large_object().unwrap();
 //!     {
 //!         let mut large_object = trans.open_large_object(oid, Mode::Write).unwrap();
-//!         util::copy(&mut file, &mut large_object).unwrap();
+//!         io::copy(&mut file, &mut large_object).unwrap();
 //!     }
 //!     trans.commit().unwrap();
 //!
-//!     let mut file = File::create(&Path::new("vacation_photos_copy.tar.gz")).unwrap();
+//!     let mut file = File::create("vacation_photos_copy.tar.gz").unwrap();
 //!     let trans = conn.transaction().unwrap();
 //!     let mut large_object = trans.open_large_object(oid, Mode::Read).unwrap();
-//!     util::copy(&mut large_object, &mut file).unwrap();
+//!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![feature(unsafe_destructor, io, old_io, core)]
+#![feature(unsafe_destructor, io, core)]
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
@@ -40,7 +39,6 @@ use std::cmp;
 use std::fmt;
 use std::i32;
 use std::num::FromPrimitive;
-use std::old_io::{self, IoResult, IoError, IoErrorKind, SeekStyle};
 use std::io;
 use std::slice::bytes;
 
@@ -58,7 +56,7 @@ pub trait LargeObjectExt: GenericConnection {
 impl<T: GenericConnection> LargeObjectExt for T {
     fn create_large_object(&self) -> Result<Oid> {
         let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_create(0)"));
-        stmt.query(&[]).map(|mut r| r.next().unwrap().get(0))
+        stmt.query(&[]).map(|r| r.iter().next().unwrap().get(0))
     }
 
     fn delete_large_object(&self, oid: Oid) -> Result<()> {
@@ -106,26 +104,13 @@ impl<'conn> LargeObjectTransactionExt for Transaction<'conn> {
         let has_64 = major > 9 || (major == 9 && minor >= 3);
 
         let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_open($1, $2)"));
-        let fd = try!(stmt.query(&[&oid, &mode.to_i32()])).next().unwrap().get(0);
+        let fd = try!(stmt.query(&[&oid, &mode.to_i32()])).iter().next().unwrap().get(0);
         Ok(LargeObject {
             trans: self,
             fd: fd,
             has_64: has_64,
             finished: false,
         })
-    }
-}
-
-macro_rules! try_old_io {
-    ($e:expr) => {
-        match $e {
-            Ok(ok) => ok,
-            Err(e) => return Err(IoError {
-                kind: IoErrorKind::OtherIoError,
-                desc: "error communicating with server",
-                detail: Some(format!("{}", e)),
-            })
-        }
     }
 }
 
@@ -173,11 +158,11 @@ impl<'a> LargeObject<'a> {
         } else {
             let len: i32 = match FromPrimitive::from_i64(len) {
                 Some(len) => len,
-                None => return Err(Error::IoError(IoError {
-                    kind: IoErrorKind::InvalidInput,
-                    desc: "The database does not support objects larger than 2GB",
-                    detail: None,
-                })),
+                None => return Err(Error::IoError(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "The database does not support objects larger than 2GB",
+                    None,
+                ))),
             };
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
@@ -203,45 +188,15 @@ impl<'a> LargeObject<'a> {
     }
 }
 
-impl<'a> Reader for LargeObject<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
-        let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let row = try_old_io!(stmt.query(&[&self.fd, &cap])).next().unwrap();
-        let out = row.get_bytes(0).unwrap();
-
-        if !buf.is_empty() && out.is_empty() {
-            return Err(old_io::standard_error(IoErrorKind::EndOfFile));
-        }
-
-        bytes::copy_memory(buf, &out);
-        Ok(out.len())
-    }
-}
-
 impl<'a> io::Read for LargeObject<'a> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let row = try_io!(stmt.query(&[&self.fd, &cap])).next().unwrap();
+        let row = try_io!(stmt.query(&[&self.fd, &cap])).into_iter().next().unwrap();
         let out = row.get_bytes(0).unwrap();
 
         bytes::copy_memory(buf, &out);
         Ok(out.len())
-    }
-}
-
-impl<'a> Writer for LargeObject<'a> {
-    fn write_all(&mut self, mut buf: &[u8]) -> IoResult<()> {
-        let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lowrite($1, $2)"));
-
-        while !buf.is_empty() {
-            let cap = cmp::min(buf.len(), i32::MAX as usize);
-            try_old_io!(stmt.execute(&[&self.fd, &&buf[..cap]]));
-            buf = &buf[cap..];
-        }
-
-        Ok(())
     }
 }
 
@@ -254,44 +209,6 @@ impl<'a> io::Write for LargeObject<'a> {
     }
 
     fn flush(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<'a> Seek for LargeObject<'a> {
-    fn tell(&self) -> IoResult<u64> {
-        if self.has_64 {
-            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell64($1)"));
-            Ok(try_old_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i64>(0) as u64)
-        } else {
-            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_tell($1)"));
-            Ok(try_old_io!(stmt.query(&[&self.fd])).next().unwrap().get::<_, i32>(0) as u64)
-        }
-    }
-
-    fn seek(&mut self, pos: i64, style: SeekStyle) -> IoResult<()> {
-        let kind = match style {
-            SeekStyle::SeekSet => 0,
-            SeekStyle::SeekCur => 1,
-            SeekStyle::SeekEnd => 2,
-        };
-
-        if self.has_64 {
-            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            try_old_io!(stmt.execute(&[&self.fd, &pos, &kind]));
-        } else {
-            let pos: i32 = match FromPrimitive::from_i64(pos) {
-                Some(pos) => pos,
-                None => return Err(IoError {
-                    kind: IoErrorKind::InvalidInput,
-                    desc: "The database does not support seeks larger than 2GB",
-                    detail: None,
-                }),
-            };
-            let stmt = try_old_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            try_old_io!(stmt.execute(&[&self.fd, &pos, &kind]));
-        }
-
         Ok(())
     }
 }
@@ -314,7 +231,7 @@ impl<'a> io::Seek for LargeObject<'a> {
 
         if self.has_64 {
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).next().unwrap().get::<_, i64>(0) as u64)
+            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i64>(0) as u64)
         } else {
             let pos: i32 = match FromPrimitive::from_i64(pos) {
                 Some(pos) => pos,
@@ -323,7 +240,7 @@ impl<'a> io::Seek for LargeObject<'a> {
                                                   None)),
             };
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).next().unwrap().get::<_, i32>(0) as u64)
+            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i32>(0) as u64)
         }
     }
 }
@@ -374,19 +291,6 @@ mod test {
     }
 
     #[test]
-    fn test_write_read_old_io() {
-        use std::old_io::{Writer, Reader};
-
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
-        let trans = conn.transaction().unwrap();
-        let oid = trans.create_large_object().unwrap();
-        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
-        lo.write_all(b"hello world!!!").unwrap();
-        let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
-        assert_eq!(b"hello world!!!", lo.read_to_end().unwrap());
-    }
-
-    #[test]
     fn test_write_read() {
         use std::io::{Write, Read};
 
@@ -399,29 +303,6 @@ mod test {
         let mut out = vec![];
         lo.read_to_end(&mut out).unwrap();
         assert_eq!(b"hello world!!!", out);
-    }
-
-    #[test]
-    fn test_seek_tell_old_io() {
-        use std::old_io::{Writer, Reader, Seek, SeekStyle};
-
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
-        let trans = conn.transaction().unwrap();
-        let oid = trans.create_large_object().unwrap();
-        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
-        lo.write_all(b"hello world!!!").unwrap();
-
-        assert_eq!(14, lo.tell().unwrap());
-        lo.seek(1, SeekStyle::SeekSet).unwrap();
-        assert_eq!(1, lo.tell().unwrap());
-        assert_eq!(b'e', lo.read_u8().unwrap());
-        assert_eq!(2, lo.tell().unwrap());
-        lo.seek(-4, SeekStyle::SeekEnd).unwrap();
-        assert_eq!(10, lo.tell().unwrap());
-        assert_eq!(b'd', lo.read_u8().unwrap());
-        lo.seek(-3, SeekStyle::SeekCur).unwrap();
-        assert_eq!(8, lo.tell().unwrap());
-        assert_eq!(b'r', lo.read_u8().unwrap());
     }
 
     #[test]
@@ -449,17 +330,6 @@ mod test {
     }
 
     #[test]
-    fn test_write_with_read_fd_old_io() {
-        use std::old_io::Writer;
-
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
-        let trans = conn.transaction().unwrap();
-        let oid = trans.create_large_object().unwrap();
-        let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
-        assert!(lo.write_all(b"hello world!!!").is_err());
-    }
-
-    #[test]
     fn test_write_with_read_fd() {
         use std::io::Write;
 
@@ -468,24 +338,6 @@ mod test {
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
         assert!(lo.write_all(b"hello world!!!").is_err());
-    }
-
-    #[test]
-    fn test_truncate_old_io() {
-        use std::old_io::{Seek, SeekStyle, Writer, Reader};
-
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
-        let trans = conn.transaction().unwrap();
-        let oid = trans.create_large_object().unwrap();
-        let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
-        lo.write_all(b"hello world!!!").unwrap();
-
-        lo.truncate(5).unwrap();
-        lo.seek(0, SeekStyle::SeekSet).unwrap();
-        assert_eq!(b"hello", lo.read_to_end().unwrap());
-        lo.truncate(10).unwrap();
-        lo.seek(0, SeekStyle::SeekSet).unwrap();
-        assert_eq!(b"hello\0\0\0\0\0", lo.read_to_end().unwrap());
     }
 
     #[test]
