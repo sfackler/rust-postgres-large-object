@@ -30,7 +30,7 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![feature(unsafe_destructor, io, core)]
+#![feature(io, core)]
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
@@ -139,7 +139,6 @@ impl<'a> fmt::Debug for LargeObject<'a> {
     }
 }
 
-#[unsafe_destructor]
 impl<'a> Drop for LargeObject<'a> {
     fn drop(&mut self) {
         let _ = self.finish_inner();
