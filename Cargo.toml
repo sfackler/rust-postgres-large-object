@@ -10,4 +10,4 @@ readme = "README.md"
 keywords = ["database", "sql", "postgres"]
 
 [dependencies]
-postgres = "0.7"
+postgres = "0.8"
