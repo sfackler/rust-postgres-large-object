@@ -1,6 +1,6 @@
 [package]
 name = "postgres_large_object"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
 license = "MIT"
 description = "Large object support for rust-postgres"
