@@ -30,7 +30,6 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![feature(io, core)]
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
@@ -38,9 +37,7 @@ extern crate postgres;
 use std::cmp;
 use std::fmt;
 use std::i32;
-use std::num::FromPrimitive;
 use std::io;
-use std::slice::bytes;
 
 use postgres::{Oid, Error, Result, Transaction, GenericConnection};
 
@@ -118,9 +115,7 @@ macro_rules! try_io {
     ($e:expr) => {
         match $e {
             Ok(ok) => ok,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::Other,
-                                                "error communicating with server",
-                                                Some(format!("{}", e))))
+            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e))
         }
     }
 }
@@ -155,13 +150,13 @@ impl<'a> LargeObject<'a> {
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate64($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         } else {
-            let len: i32 = match FromPrimitive::from_i64(len) {
-                Some(len) => len,
-                None => return Err(Error::IoError(io::Error::new(
+            let len: i32 = if len <= i32::max_value() as i64 {
+                len as i32
+            } else {
+                return Err(Error::IoError(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "The database does not support objects larger than 2GB",
-                    None,
-                ))),
+                    "The database does not support objects larger than 2GB"
+                )))
             };
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
@@ -194,7 +189,9 @@ impl<'a> io::Read for LargeObject<'a> {
         let row = try_io!(stmt.query(&[&self.fd, &cap])).into_iter().next().unwrap();
         let out = row.get_bytes(0).unwrap();
 
-        bytes::copy_memory(buf, &out);
+        for (i, o) in out.iter().zip(buf.iter_mut()) {
+            *o = *i;
+        }
         Ok(out.len())
     }
 }
@@ -216,11 +213,11 @@ impl<'a> io::Seek for LargeObject<'a> {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         let (kind, pos) = match pos {
             io::SeekFrom::Start(pos) => {
-                let pos = match FromPrimitive::from_u64(pos) {
-                    Some(pos) => pos,
-                    None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                      "cannot seek more than 2^63 bytes",
-                                                      None)),
+                let pos = if pos <= i64::max_value as u64 {
+                    pos as i64
+                } else {
+                    return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                              "cannot seek more than 2^63 bytes"));
                 };
                 (0, pos)
             }
@@ -232,11 +229,11 @@ impl<'a> io::Seek for LargeObject<'a> {
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
             Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i64>(0) as u64)
         } else {
-            let pos: i32 = match FromPrimitive::from_i64(pos) {
-                Some(pos) => pos,
-                None => return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                                  "cannot seek more than 2^31 bytes",
-                                                  None)),
+            let pos = if pos <= i32::max_value() as i64 {
+                pos as i32
+            } else {
+                return Err(io::Error::new(io::ErrorKind::InvalidInput,
+                                          "cannot seek more than 2^31 bytes"));
             };
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
             Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i32>(0) as u64)
@@ -301,7 +298,7 @@ mod test {
         let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
         let mut out = vec![];
         lo.read_to_end(&mut out).unwrap();
-        assert_eq!(b"hello world!!!", out);
+        assert_eq!(out, b"hello world!!!");
     }
 
     #[test]
@@ -353,11 +350,11 @@ mod test {
         lo.seek(SeekFrom::Start(0)).unwrap();
         let mut buf = vec![];
         lo.read_to_end(&mut buf).unwrap();
-        assert_eq!(b"hello", buf);
+        assert_eq!(buf, b"hello");
         lo.truncate(10).unwrap();
         lo.seek(SeekFrom::Start(0)).unwrap();
         buf.clear();
         lo.read_to_end(&mut buf).unwrap();
-        assert_eq!(b"hello\0\0\0\0\0", buf);
+        assert_eq!(buf, b"hello\0\0\0\0\0");
     }
 }
