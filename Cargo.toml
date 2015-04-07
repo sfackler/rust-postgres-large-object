@@ -11,3 +11,4 @@ keywords = ["database", "sql", "postgres"]
 
 [dependencies]
 postgres = "0.8"
+debug-builders = "0.1"

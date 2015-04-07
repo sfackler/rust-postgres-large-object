@@ -33,13 +33,14 @@
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
 
 extern crate postgres;
+extern crate debug_builders;
 
+use debug_builders::DebugStruct;
+use postgres::{Oid, Error, Result, Transaction, GenericConnection};
 use std::cmp;
 use std::fmt;
 use std::i32;
 use std::io;
-
-use postgres::{Oid, Error, Result, Transaction, GenericConnection};
 
 /// An extension trait adding functionality to create and delete large objects.
 pub trait LargeObjectExt: GenericConnection {
@@ -130,7 +131,10 @@ pub struct LargeObject<'a> {
 
 impl<'a> fmt::Debug for LargeObject<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        write!(fmt, "LargeObject {{ fd: {:?}, transaction: {:?} }}", self.fd, self.trans)
+        DebugStruct::new(fmt, "LargeObject")
+            .field("fd", &self.fd)
+            .field("transaction", &self.trans)
+            .finish()
     }
 }
 
