@@ -402,8 +402,6 @@
 <span id="360">360</span>
 <span id="361">361</span>
 <span id="362">362</span>
-<span id="363">363</span>
-<span id="364">364</span>
 </pre><pre class='rust '>
 <span class='doccomment'>//! A crate providing access to the Postgres large object API.</span>
 <span class='doccomment'>//!</span>
@@ -653,9 +651,7 @@
 }
 
 <span class='attribute'>#[<span class='ident'>cfg</span>(<span class='ident'>test</span>)]</span>
-<span class='attribute'>#[<span class='ident'>no_implicit_prelude</span>]</span>
 <span class='kw'>mod</span> <span class='ident'>test</span> {
-    <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>result</span>::<span class='prelude-ty'>Result</span>::{<span class='prelude-val'>Ok</span>, <span class='prelude-val'>Err</span>};
     <span class='kw'>use</span> <span class='ident'>postgres</span>::{<span class='ident'>Connection</span>, <span class='ident'>SslMode</span>, <span class='ident'>SqlState</span>, <span class='ident'>Error</span>};
 
     <span class='kw'>use</span> {<span class='ident'>LargeObjectExt</span>, <span class='ident'>LargeObjectTransactionExt</span>, <span class='ident'>Mode</span>};
