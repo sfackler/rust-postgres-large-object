@@ -246,9 +246,7 @@ impl<'a> io::Seek for LargeObject<'a> {
 }
 
 #[cfg(test)]
-#[no_implicit_prelude]
 mod test {
-    use std::result::Result::{Ok, Err};
     use postgres::{Connection, SslMode, SqlState, Error};
 
     use {LargeObjectExt, LargeObjectTransactionExt, Mode};
