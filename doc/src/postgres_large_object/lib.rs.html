@@ -448,7 +448,7 @@
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>io</span>;
 
 <span class='doccomment'>/// An extension trait adding functionality to create and delete large objects.</span>
-<span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>LargeObjectExt</span>: <span class='ident'>GenericConnection</span> {
+<span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>LargeObjectExt</span> {
     <span class='doccomment'>/// Creates a new large object, returning its `Oid`.</span>
     <span class='kw'>fn</span> <span class='ident'>create_large_object</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='prelude-ty'>Result</span><span class='op'>&lt;</span><span class='ident'>Oid</span><span class='op'>&gt;</span>;
 
