@@ -43,7 +43,7 @@ use std::i32;
 use std::io;
 
 /// An extension trait adding functionality to create and delete large objects.
-pub trait LargeObjectExt: GenericConnection {
+pub trait LargeObjectExt {
     /// Creates a new large object, returning its `Oid`.
     fn create_large_object(&self) -> Result<Oid>;
 
