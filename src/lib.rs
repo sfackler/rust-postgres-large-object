@@ -30,7 +30,7 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc")]
+#![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.2")]
 
 extern crate postgres;
 extern crate debug_builders;
