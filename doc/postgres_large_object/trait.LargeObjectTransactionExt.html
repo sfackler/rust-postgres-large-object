@@ -42,19 +42,21 @@
 
     <section id='main' class="content trait">
 <h1 class='fqn'><span class='in-band'>Trait <a href='index.html'>postgres_large_object</a>::<wbr><a class='trait' href=''>LargeObjectTransactionExt</a></span><span class='out-of-band'><span id='render-detail'>
-            <a id="toggle-all-docs" href="#" title="collapse all docs">[-]</a>
-        </span><a id='src-197' class='srclink' href='../src/postgres_large_object/lib.rs.html#91-94' title='goto source code'>[src]</a></span></h1>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-197' class='srclink' href='../src/postgres_large_object/lib.rs.html#93-96' title='goto source code'>[src]</a></span></h1>
 <pre class='rust trait'>pub trait LargeObjectTransactionExt {
-    fn <a href='#tymethod.open_large_object' class='fnname'>open_large_object</a>&lt;'a&gt;(&amp;'a self, oid: <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/types/type.Oid.html' title='postgres::types::Oid'>Oid</a>, mode: <a class='enum' href='../postgres_large_object/enum.Mode.html' title='postgres_large_object::Mode'>Mode</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;&gt;;
+    fn <a href='#tymethod.open_large_object' class='fnname'>open_large_object</a>&lt;'a&gt;(&amp;'a self, oid: <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/types/type.Oid.html' title='postgres::types::Oid'>Oid</a>, mode: <a class='enum' href='../postgres_large_object/enum.Mode.html' title='postgres_large_object::Mode'>Mode</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;&gt;;
 }</pre><div class='docblock'><p>An extension trait adding functionality to open large objects.</p>
 </div>
             <h2 id='required-methods'>Required Methods</h2>
             <div class='methods'>
-        <h3 id='tymethod.open_large_object' class='method stab '><code>fn <a href='#tymethod.open_large_object' class='fnname'>open_large_object</a>&lt;'a&gt;(&amp;'a self, oid: <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/types/type.Oid.html' title='postgres::types::Oid'>Oid</a>, mode: <a class='enum' href='../postgres_large_object/enum.Mode.html' title='postgres_large_object::Mode'>Mode</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;&gt;</code></h3><div class='docblock'><p>Opens the large object with the specified <code>Oid</code> in the specified <code>Mode</code>.</p>
+        <h3 id='tymethod.open_large_object' class='method stab '><code>fn <a href='#tymethod.open_large_object' class='fnname'>open_large_object</a>&lt;'a&gt;(&amp;'a self, oid: <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/types/type.Oid.html' title='postgres::types::Oid'>Oid</a>, mode: <a class='enum' href='../postgres_large_object/enum.Mode.html' title='postgres_large_object::Mode'>Mode</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;&gt;</code></h3><div class='docblock'><p>Opens the large object with the specified <code>Oid</code> in the specified <code>Mode</code>.</p>
 </div></div>
         <h2 id='implementors'>Implementors</h2>
         <ul class='item-list' id='implementors-list'>
-    <li><code>impl&lt;'conn&gt; <a class='trait' href='../postgres_large_object/trait.LargeObjectTransactionExt.html' title='postgres_large_object::LargeObjectTransactionExt'>LargeObjectTransactionExt</a> for <a class='struct' href='https://sfackler.github.io/rust-postgres/doc/postgres/struct.Transaction.html' title='postgres::Transaction'>Transaction</a>&lt;'conn&gt;</code></li>
+    <li><code>impl&lt;'conn&gt; <a class='trait' href='../postgres_large_object/trait.LargeObjectTransactionExt.html' title='postgres_large_object::LargeObjectTransactionExt'>LargeObjectTransactionExt</a> for <a class='struct' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/struct.Transaction.html' title='postgres::Transaction'>Transaction</a>&lt;'conn&gt;</code></li>
 </ul><script type="text/javascript" async
                               src="../implementors/postgres_large_object/trait.LargeObjectTransactionExt.js">
                       </script></section>
@@ -89,6 +91,10 @@
                 <code>struct</code>, <code>enum</code>,
                 <code>trait</code>, <code>typedef</code> (or
                 <code>tdef</code>).
+            </p>
+            <p>
+                Search functions by type signature (e.g.
+                <code>vec -> usize</code>)
             </p>
         </div>
     </div>

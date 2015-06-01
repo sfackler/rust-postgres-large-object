@@ -42,17 +42,19 @@
 
     <section id='main' class="content struct">
 <h1 class='fqn'><span class='in-band'>Struct <a href='index.html'>postgres_large_object</a>::<wbr><a class='struct' href=''>LargeObject</a></span><span class='out-of-band'><span id='render-detail'>
-            <a id="toggle-all-docs" href="#" title="collapse all docs">[-]</a>
-        </span><a id='src-343' class='srclink' href='../src/postgres_large_object/lib.rs.html#125-130' title='goto source code'>[src]</a></span></h1>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-343' class='srclink' href='../src/postgres_large_object/lib.rs.html#127-132' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct LargeObject&lt;'a&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>Represents an open large object.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;'a&gt; <a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;</code></h3><div class='impl-items'><h4 id='method.truncate' class='method'><code>fn <a href='#method.truncate' class='fnname'>truncate</a>(&amp;mut self, len: <a href='http://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl&lt;'a&gt; <a class='struct' href='../postgres_large_object/struct.LargeObject.html' title='postgres_large_object::LargeObject'>LargeObject</a>&lt;'a&gt;</code></h3><div class='impl-items'><h4 id='method.truncate' class='method'><code>fn <a href='#method.truncate' class='fnname'>truncate</a>(&amp;mut self, len: <a href='http://doc.rust-lang.org/nightly/std/primitive.i64.html'>i64</a>) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
 <div class='docblock'><p>Truncates the object to the specified size.</p>
 
 <p>If <code>len</code> is larger than the size of the object, it will be padded with
 null bytes to the specified size.</p>
-</div><h4 id='method.finish' class='method'><code>fn <a href='#method.finish' class='fnname'>finish</a>(self) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
+</div><h4 id='method.finish' class='method'><code>fn <a href='#method.finish' class='fnname'>finish</a>(self) -&gt; <a class='type' href='https://sfackler.github.io/rust-postgres/doc/v0.9.1/postgres/type.Result.html' title='postgres::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>&gt;</code></h4>
 <div class='docblock'><p>Consumes the <code>LargeObject</code>, cleaning up server side state.</p>
 
 <p>Functionally identical to the <code>Drop</code> implementation on <code>LargeObject</code>
@@ -107,6 +109,10 @@ except that it returns any errors to the caller.</p>
                 <code>struct</code>, <code>enum</code>,
                 <code>trait</code>, <code>typedef</code> (or
                 <code>tdef</code>).
+            </p>
+            <p>
+                Search functions by type signature (e.g.
+                <code>vec -> usize</code>)
             </p>
         </div>
     </div>
