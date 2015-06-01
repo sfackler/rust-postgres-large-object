@@ -2,15 +2,10 @@ language: rust
 rust:
 - nightly
 - beta
+- stable
 addons:
   postgresql: 9.4
 script:
 - cargo test
 - sudo service postgresql stop && sudo service postgresql start 9.1
 - cargo test
-- cargo doc --no-deps
-after_success:
-- test $TRAVIS_PULL_REQUEST == "false" && test $TRAVIS_BRANCH == "master" && test $TRAVIS_RUST_VERSION == "nightly" && ./.travis/update_docs.sh
-env:
-  global:
-    secure: NwuXXkfdUD7PEIL9gyvyob/yaGry14QMhiYOrEWPMDuDBrJsjwYJJFgYsyX3HJ+TNpLt/kdjpYU4Gr2fn4F0OUDM1fHzJtsc1wXgxTaLvIK7Jdu1nNFMtII7KZgRHvD7RQs/PM4xAPLHJYbdW5wdUyVE1YQ2DktIfI7rs9haWqU=
