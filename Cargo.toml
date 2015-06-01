@@ -10,5 +10,5 @@ readme = "README.md"
 keywords = ["database", "sql", "postgres"]
 
 [dependencies]
-postgres = "0.8"
+postgres = "0.9"
 debug-builders = "0.1"

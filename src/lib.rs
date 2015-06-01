@@ -36,7 +36,9 @@ extern crate postgres;
 extern crate debug_builders;
 
 use debug_builders::DebugStruct;
-use postgres::{Oid, Error, Result, Transaction, GenericConnection};
+use postgres::{Result, Transaction, GenericConnection};
+use postgres::error::Error;
+use postgres::types::Oid;
 use std::cmp;
 use std::fmt;
 use std::i32;
@@ -247,7 +249,8 @@ impl<'a> io::Seek for LargeObject<'a> {
 
 #[cfg(test)]
 mod test {
-    use postgres::{Connection, SslMode, SqlState, Error};
+    use postgres::{Connection, SslMode};
+    use postgres::error::{Error, SqlState};
 
     use {LargeObjectExt, LargeObjectTransactionExt, Mode};
 
