@@ -42,7 +42,7 @@ use postgres::types::Oid;
 use std::cmp;
 use std::fmt;
 use std::i32;
-use std::io;
+use std::io::{self, Write};
 
 /// An extension trait adding functionality to create and delete large objects.
 pub trait LargeObjectExt {
@@ -189,16 +189,12 @@ impl<'a> LargeObject<'a> {
 }
 
 impl<'a> io::Read for LargeObject<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
         let row = try_io!(stmt.query(&[&self.fd, &cap])).into_iter().next().unwrap();
         let out = row.get_bytes(0).unwrap();
-
-        for (i, o) in out.iter().zip(buf.iter_mut()) {
-            *o = *i;
-        }
-        Ok(out.len())
+        buf.write(out)
     }
 }
 
