@@ -147,6 +147,11 @@ impl<'a> Drop for LargeObject<'a> {
 }
 
 impl<'a> LargeObject<'a> {
+    /// Returns the file descriptor of the opened file.
+    pub fn fd(&self) -> i32 {
+        self.fd
+    }
+
     /// Truncates the object to the specified size.
     ///
     /// If `len` is larger than the size of the object, it will be padded with
