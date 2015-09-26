@@ -147,7 +147,7 @@ impl<'a> Drop for LargeObject<'a> {
 }
 
 impl<'a> LargeObject<'a> {
-    /// Returns the file descriptor of the opened file.
+    /// Returns the file descriptor of the opened object.
     pub fn fd(&self) -> i32 {
         self.fd
     }
