@@ -33,9 +33,7 @@
 #![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.3")]
 
 extern crate postgres;
-extern crate debug_builders;
 
-use debug_builders::DebugStruct;
 use postgres::{Result, Transaction, GenericConnection};
 use postgres::error::Error;
 use postgres::types::Oid;
@@ -133,7 +131,7 @@ pub struct LargeObject<'a> {
 
 impl<'a> fmt::Debug for LargeObject<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        DebugStruct::new(fmt, "LargeObject")
+        fmt.debug_struct("LargeObject")
             .field("fd", &self.fd)
             .field("transaction", &self.trans)
             .finish()
