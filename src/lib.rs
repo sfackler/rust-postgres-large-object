@@ -132,9 +132,9 @@ pub struct LargeObject<'a> {
 impl<'a> fmt::Debug for LargeObject<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("LargeObject")
-            .field("fd", &self.fd)
-            .field("transaction", &self.trans)
-            .finish()
+           .field("fd", &self.fd)
+           .field("transaction", &self.trans)
+           .finish()
     }
 }
 
@@ -159,13 +159,12 @@ impl<'a> LargeObject<'a> {
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate64($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         } else {
-            let len: i32 = if len <= i32::max_value() as i64 {
+            let len = if len <= i32::max_value() as i64 {
                 len as i32
             } else {
-                return Err(Error::IoError(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "The database does not support objects larger than 2GB"
-                )))
+                return Err(Error::IoError(io::Error::new(io::ErrorKind::InvalidInput,
+                                                         "The database does not support objects \
+                                                          larger than 2GB")));
             };
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
@@ -231,8 +230,11 @@ impl<'a> io::Seek for LargeObject<'a> {
         };
 
         if self.has_64 {
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i64>(0) as u64)
+            let stmt = try_io!(self.trans
+                                   .prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
+            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let pos: i64 = rows.iter().next().unwrap().get(0);
+            Ok(pos as u64)
         } else {
             let pos = if pos <= i32::max_value() as i64 {
                 pos as i32
@@ -241,7 +243,9 @@ impl<'a> io::Seek for LargeObject<'a> {
                                           "cannot seek more than 2^31 bytes"));
             };
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i32>(0) as u64)
+            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let pos: i64 = rows.iter().next().unwrap().get(0);
+            Ok(pos as u64)
         }
     }
 }
