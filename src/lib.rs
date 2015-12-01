@@ -30,19 +30,17 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.3")]
+#![doc(html_root_url="https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.4")]
 
 extern crate postgres;
-extern crate debug_builders;
 
-use debug_builders::DebugStruct;
 use postgres::{Result, Transaction, GenericConnection};
 use postgres::error::Error;
 use postgres::types::Oid;
 use std::cmp;
 use std::fmt;
 use std::i32;
-use std::io;
+use std::io::{self, Write};
 
 /// An extension trait adding functionality to create and delete large objects.
 pub trait LargeObjectExt {
@@ -133,10 +131,10 @@ pub struct LargeObject<'a> {
 
 impl<'a> fmt::Debug for LargeObject<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        DebugStruct::new(fmt, "LargeObject")
-            .field("fd", &self.fd)
-            .field("transaction", &self.trans)
-            .finish()
+        fmt.debug_struct("LargeObject")
+           .field("fd", &self.fd)
+           .field("transaction", &self.trans)
+           .finish()
     }
 }
 
@@ -147,6 +145,11 @@ impl<'a> Drop for LargeObject<'a> {
 }
 
 impl<'a> LargeObject<'a> {
+    /// Returns the file descriptor of the opened object.
+    pub fn fd(&self) -> i32 {
+        self.fd
+    }
+
     /// Truncates the object to the specified size.
     ///
     /// If `len` is larger than the size of the object, it will be padded with
@@ -156,13 +159,12 @@ impl<'a> LargeObject<'a> {
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate64($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         } else {
-            let len: i32 = if len <= i32::max_value() as i64 {
+            let len = if len <= i32::max_value() as i64 {
                 len as i32
             } else {
-                return Err(Error::IoError(io::Error::new(
-                    io::ErrorKind::InvalidInput,
-                    "The database does not support objects larger than 2GB"
-                )))
+                return Err(Error::IoError(io::Error::new(io::ErrorKind::InvalidInput,
+                                                         "The database does not support objects \
+                                                          larger than 2GB")));
             };
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
@@ -189,16 +191,12 @@ impl<'a> LargeObject<'a> {
 }
 
 impl<'a> io::Read for LargeObject<'a> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
         let row = try_io!(stmt.query(&[&self.fd, &cap])).into_iter().next().unwrap();
         let out = row.get_bytes(0).unwrap();
-
-        for (i, o) in out.iter().zip(buf.iter_mut()) {
-            *o = *i;
-        }
-        Ok(out.len())
+        buf.write(out)
     }
 }
 
@@ -232,8 +230,11 @@ impl<'a> io::Seek for LargeObject<'a> {
         };
 
         if self.has_64 {
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i64>(0) as u64)
+            let stmt = try_io!(self.trans
+                                   .prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
+            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let pos: i64 = rows.iter().next().unwrap().get(0);
+            Ok(pos as u64)
         } else {
             let pos = if pos <= i32::max_value() as i64 {
                 pos as i32
@@ -242,7 +243,9 @@ impl<'a> io::Seek for LargeObject<'a> {
                                           "cannot seek more than 2^31 bytes"));
             };
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            Ok(try_io!(stmt.query(&[&self.fd, &pos, &kind])).iter().next().unwrap().get::<_, i32>(0) as u64)
+            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let pos: i32 = rows.iter().next().unwrap().get(0);
+            Ok(pos as u64)
         }
     }
 }

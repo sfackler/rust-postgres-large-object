@@ -1,14 +1,13 @@
 [package]
 name = "postgres_large_object"
-version = "0.3.3"
+version = "0.3.4"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
 license = "MIT"
 description = "Large object support for rust-postgres"
 repository = "https://github.com/sfackler/rust-postgres-large-object"
-documentation = "https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.3/postgres_large_object"
+documentation = "https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.4/postgres_large_object"
 readme = "README.md"
 keywords = ["database", "sql", "postgres"]
 
 [dependencies]
 postgres = ">= 0.9, < 0.11"
-debug-builders = "0.1"
