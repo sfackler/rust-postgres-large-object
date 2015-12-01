@@ -244,7 +244,7 @@ impl<'a> io::Seek for LargeObject<'a> {
             };
             let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
             let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
-            let pos: i64 = rows.iter().next().unwrap().get(0);
+            let pos: i32 = rows.iter().next().unwrap().get(0);
             Ok(pos as u64)
         }
     }
