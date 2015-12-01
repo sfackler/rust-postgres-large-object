@@ -4,7 +4,7 @@ A crate providing access to the Postgres large object API.
 
 [![Build Status](https://travis-ci.org/sfackler/rust-postgres-large-object.svg?branch=master)](https://travis-ci.org/sfackler/rust-postgres-large-object)
 
-[Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.3/postgres_large_object)
+[Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.4/postgres_large_object)
 
 # Example
 
