@@ -4,7 +4,7 @@ A crate providing access to the Postgres large object API.
 
 [![Build Status](https://travis-ci.org/sfackler/rust-postgres-large-object.svg?branch=master)](https://travis-ci.org/sfackler/rust-postgres-large-object)
 
-[Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.3.4/postgres_large_object)
+[Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.4.0/postgres_large_object)
 
 # Example
 
@@ -19,7 +19,7 @@ use postgres::{Connection, SslMode};
 use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};
 
 fn main() {
-    let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+    let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
 
     let mut file = File::open("vacation_photos.tar.gz").unwrap();
     let trans = conn.transaction().unwrap();
