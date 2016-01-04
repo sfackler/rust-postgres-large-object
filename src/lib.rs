@@ -13,7 +13,7 @@
 //! use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};
 //!
 //! fn main() {
-//!     let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+//!     let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
 //!
 //!     let mut file = File::open("vacation_photos.tar.gz").unwrap();
 //!     let trans = conn.transaction().unwrap();
@@ -54,7 +54,8 @@ pub trait LargeObjectExt {
 impl<T: GenericConnection> LargeObjectExt for T {
     fn create_large_object(&self) -> Result<Oid> {
         let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_create(0)"));
-        stmt.query(&[]).map(|r| r.iter().next().unwrap().get(0))
+        let r = stmt.query(&[]).map(|r| r.iter().next().unwrap().get(0));
+        r
     }
 
     fn delete_large_object(&self, oid: Oid) -> Result<()> {
@@ -162,9 +163,9 @@ impl<'a> LargeObject<'a> {
             let len = if len <= i32::max_value() as i64 {
                 len as i32
             } else {
-                return Err(Error::IoError(io::Error::new(io::ErrorKind::InvalidInput,
-                                                         "The database does not support objects \
-                                                          larger than 2GB")));
+                return Err(Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
+                                                    "The database does not support objects larger \
+                                                     than 2GB")));
             };
             let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
             stmt.execute(&[&self.fd, &len]).map(|_| ())
@@ -194,9 +195,8 @@ impl<'a> io::Read for LargeObject<'a> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let row = try_io!(stmt.query(&[&self.fd, &cap])).into_iter().next().unwrap();
-        let out = row.get_bytes(0).unwrap();
-        buf.write(out)
+        let rows = try_io!(stmt.query(&[&self.fd, &cap]));
+        buf.write(rows.get(0).get_bytes(0).unwrap())
     }
 }
 
@@ -259,35 +259,35 @@ mod test {
 
     #[test]
     fn test_create_delete() {
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let oid = conn.create_large_object().unwrap();
         conn.delete_large_object(oid).unwrap();
     }
 
     #[test]
     fn test_delete_bogus() {
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         match conn.delete_large_object(0) {
             Ok(()) => panic!("unexpected success"),
-            Err(Error::DbError(ref e)) if e.code() == &SqlState::UndefinedObject => {}
+            Err(Error::Db(ref e)) if e.code == SqlState::UndefinedObject => {}
             Err(e) => panic!("unexpected error: {:?}", e),
         }
     }
 
     #[test]
     fn test_open_bogus() {
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         match trans.open_large_object(0, Mode::Read) {
             Ok(_) => panic!("unexpected success"),
-            Err(Error::DbError(ref e)) if e.code() == &SqlState::UndefinedObject => {}
+            Err(Error::Db(ref e)) if e.code == SqlState::UndefinedObject => {}
             Err(e) => panic!("unexpected error: {:?}", e),
         };
     }
 
     #[test]
     fn test_open_finish() {
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let lo = trans.open_large_object(oid, Mode::Read).unwrap();
@@ -298,7 +298,7 @@ mod test {
     fn test_write_read() {
         use std::io::{Write, Read};
 
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
@@ -313,7 +313,7 @@ mod test {
     fn test_seek_tell() {
         use std::io::{Write, Read, Seek, SeekFrom};
 
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
@@ -337,7 +337,7 @@ mod test {
     fn test_write_with_read_fd() {
         use std::io::Write;
 
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
@@ -348,7 +348,7 @@ mod test {
     fn test_truncate() {
         use std::io::{Seek, SeekFrom, Write, Read};
 
-        let conn = Connection::connect("postgres://postgres@localhost", &SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
