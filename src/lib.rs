@@ -9,11 +9,11 @@
 //! use std::fs::File;
 //! use std::io;
 //!
-//! use postgres::{Connection, SslMode};
+//! use postgres::{Connection, TlsMode};
 //! use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};
 //!
 //! fn main() {
-//!     let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+//!     let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
 //!
 //!     let mut file = File::open("vacation_photos.tar.gz").unwrap();
 //!     let trans = conn.transaction().unwrap();
@@ -34,7 +34,8 @@
 
 extern crate postgres;
 
-use postgres::{Result, Transaction, GenericConnection};
+use postgres::{Result, GenericConnection};
+use postgres::transaction::Transaction;
 use postgres::error::Error;
 use postgres::types::Oid;
 use std::cmp;
@@ -252,21 +253,21 @@ impl<'a> io::Seek for LargeObject<'a> {
 
 #[cfg(test)]
 mod test {
-    use postgres::{Connection, SslMode};
+    use postgres::{Connection, TlsMode};
     use postgres::error::{Error, SqlState};
 
     use {LargeObjectExt, LargeObjectTransactionExt, Mode};
 
     #[test]
     fn test_create_delete() {
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let oid = conn.create_large_object().unwrap();
         conn.delete_large_object(oid).unwrap();
     }
 
     #[test]
     fn test_delete_bogus() {
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         match conn.delete_large_object(0) {
             Ok(()) => panic!("unexpected success"),
             Err(Error::Db(ref e)) if e.code == SqlState::UndefinedObject => {}
@@ -276,7 +277,7 @@ mod test {
 
     #[test]
     fn test_open_bogus() {
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         match trans.open_large_object(0, Mode::Read) {
             Ok(_) => panic!("unexpected success"),
@@ -287,7 +288,7 @@ mod test {
 
     #[test]
     fn test_open_finish() {
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let lo = trans.open_large_object(oid, Mode::Read).unwrap();
@@ -298,7 +299,7 @@ mod test {
     fn test_write_read() {
         use std::io::{Write, Read};
 
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
@@ -313,7 +314,7 @@ mod test {
     fn test_seek_tell() {
         use std::io::{Write, Read, Seek, SeekFrom};
 
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();
@@ -337,7 +338,7 @@ mod test {
     fn test_write_with_read_fd() {
         use std::io::Write;
 
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Read).unwrap();
@@ -348,7 +349,7 @@ mod test {
     fn test_truncate() {
         use std::io::{Seek, SeekFrom, Write, Read};
 
-        let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+        let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
         let oid = trans.create_large_object().unwrap();
         let mut lo = trans.open_large_object(oid, Mode::Write).unwrap();

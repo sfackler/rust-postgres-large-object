@@ -15,11 +15,11 @@ extern crate postgres_large_object;
 use std::fs::File;
 use std::io;
 
-use postgres::{Connection, SslMode};
+use postgres::{Connection, TlsMode};
 use postgres_large_object::{LargeObjectExt, LargeObjectTransactionExt, Mode};
 
 fn main() {
-    let conn = Connection::connect("postgres://postgres@localhost", SslMode::None).unwrap();
+    let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
 
     let mut file = File::open("vacation_photos.tar.gz").unwrap();
     let trans = conn.transaction().unwrap();
