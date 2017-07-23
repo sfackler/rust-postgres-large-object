@@ -30,7 +30,7 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![doc(html_root_url="https://docs.rs/postgres_large_object/0.6.0")]
+#![doc(html_root_url="https://docs.rs/postgres_large_object/0.7.0")]
 
 extern crate postgres;
 
