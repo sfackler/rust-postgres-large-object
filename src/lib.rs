@@ -36,7 +36,6 @@ extern crate postgres;
 
 use postgres::{Result, GenericConnection};
 use postgres::transaction::Transaction;
-use postgres::error::Error;
 use postgres::types::Oid;
 use std::cmp;
 use std::fmt;
@@ -54,13 +53,13 @@ pub trait LargeObjectExt {
 
 impl<T: GenericConnection> LargeObjectExt for T {
     fn create_large_object(&self) -> Result<Oid> {
-        let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_create(0)"));
+        let stmt = self.prepare_cached("SELECT pg_catalog.lo_create(0)")?;
         let r = stmt.query(&[]).map(|r| r.iter().next().unwrap().get(0));
         r
     }
 
     fn delete_large_object(&self, oid: Oid) -> Result<()> {
-        let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_unlink($1)"));
+        let stmt = self.prepare_cached("SELECT pg_catalog.lo_unlink($1)")?;
         stmt.execute(&[&oid]).map(|_| ())
     }
 }
@@ -103,23 +102,18 @@ impl<'conn> LargeObjectTransactionExt for Transaction<'conn> {
         let minor: i32 = version.next().unwrap().parse().unwrap();
         let has_64 = major > 9 || (major == 9 && minor >= 3);
 
-        let stmt = try!(self.prepare_cached("SELECT pg_catalog.lo_open($1, $2)"));
-        let fd = try!(stmt.query(&[&oid, &mode.to_i32()])).iter().next().unwrap().get(0);
+        let stmt = self.prepare_cached("SELECT pg_catalog.lo_open($1, $2)")?;
+        let fd = stmt.query(&[&oid, &mode.to_i32()])?
+            .iter()
+            .next()
+            .unwrap()
+            .get(0);
         Ok(LargeObject {
             trans: self,
             fd: fd,
             has_64: has_64,
             finished: false,
         })
-    }
-}
-
-macro_rules! try_io {
-    ($e:expr) => {
-        match $e {
-            Ok(ok) => ok,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::Other, e))
-        }
     }
 }
 
@@ -134,9 +128,9 @@ pub struct LargeObject<'a> {
 impl<'a> fmt::Debug for LargeObject<'a> {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         fmt.debug_struct("LargeObject")
-           .field("fd", &self.fd)
-           .field("transaction", &self.trans)
-           .finish()
+            .field("fd", &self.fd)
+            .field("transaction", &self.trans)
+            .finish()
     }
 }
 
@@ -158,17 +152,25 @@ impl<'a> LargeObject<'a> {
     /// null bytes to the specified size.
     pub fn truncate(&mut self, len: i64) -> Result<()> {
         if self.has_64 {
-            let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate64($1, $2)"));
+            let stmt = self.trans.prepare_cached(
+                "SELECT pg_catalog.lo_truncate64($1, $2)",
+            )?;
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         } else {
             let len = if len <= i32::max_value() as i64 {
                 len as i32
             } else {
-                return Err(Error::Io(io::Error::new(io::ErrorKind::InvalidInput,
-                                                    "The database does not support objects larger \
-                                                     than 2GB")));
+                return Err(
+                    io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "The database does not support objects larger \
+                                                     than 2GB",
+                    ).into(),
+                );
             };
-            let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)"));
+            let stmt = self.trans.prepare_cached(
+                "SELECT pg_catalog.lo_truncate($1, $2)",
+            )?;
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         }
     }
@@ -179,7 +181,7 @@ impl<'a> LargeObject<'a> {
         }
 
         self.finished = true;
-        let stmt = try!(self.trans.prepare_cached("SELECT pg_catalog.lo_close($1)"));
+        let stmt = self.trans.prepare_cached("SELECT pg_catalog.lo_close($1)")?;
         stmt.execute(&[&self.fd]).map(|_| ())
     }
 
@@ -194,18 +196,22 @@ impl<'a> LargeObject<'a> {
 
 impl<'a> io::Read for LargeObject<'a> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.loread($1, $2)"));
+        let stmt = self.trans.prepare_cached(
+            "SELECT pg_catalog.loread($1, $2)",
+        )?;
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
-        let rows = try_io!(stmt.query(&[&self.fd, &cap]));
+        let rows = stmt.query(&[&self.fd, &cap])?;
         buf.write(rows.get(0).get_bytes(0).unwrap())
     }
 }
 
 impl<'a> io::Write for LargeObject<'a> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lowrite($1, $2)"));
+        let stmt = self.trans.prepare_cached(
+            "SELECT pg_catalog.lowrite($1, $2)",
+        )?;
         let cap = cmp::min(buf.len(), i32::MAX as usize);
-        try_io!(stmt.execute(&[&self.fd, &&buf[..cap]]));
+        stmt.execute(&[&self.fd, &&buf[..cap]])?;
         Ok(cap)
     }
 
@@ -221,8 +227,10 @@ impl<'a> io::Seek for LargeObject<'a> {
                 let pos = if pos <= i64::max_value as u64 {
                     pos as i64
                 } else {
-                    return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                              "cannot seek more than 2^63 bytes"));
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "cannot seek more than 2^63 bytes",
+                    ));
                 };
                 (0, pos)
             }
@@ -231,20 +239,25 @@ impl<'a> io::Seek for LargeObject<'a> {
         };
 
         if self.has_64 {
-            let stmt = try_io!(self.trans
-                                   .prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)"));
-            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let stmt = self.trans.prepare_cached(
+                "SELECT pg_catalog.lo_lseek64($1, $2, $3)",
+            )?;
+            let rows = stmt.query(&[&self.fd, &pos, &kind])?;
             let pos: i64 = rows.iter().next().unwrap().get(0);
             Ok(pos as u64)
         } else {
             let pos = if pos <= i32::max_value() as i64 {
                 pos as i32
             } else {
-                return Err(io::Error::new(io::ErrorKind::InvalidInput,
-                                          "cannot seek more than 2^31 bytes"));
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "cannot seek more than 2^31 bytes",
+                ));
             };
-            let stmt = try_io!(self.trans.prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)"));
-            let rows = try_io!(stmt.query(&[&self.fd, &pos, &kind]));
+            let stmt = self.trans.prepare_cached(
+                "SELECT pg_catalog.lo_lseek($1, $2, $3)",
+            )?;
+            let rows = stmt.query(&[&self.fd, &pos, &kind])?;
             let pos: i32 = rows.iter().next().unwrap().get(0);
             Ok(pos as u64)
         }
@@ -254,7 +267,7 @@ impl<'a> io::Seek for LargeObject<'a> {
 #[cfg(test)]
 mod test {
     use postgres::{Connection, TlsMode};
-    use postgres::error::{Error, SqlState};
+    use postgres::error::UNDEFINED_OBJECT;
 
     use {LargeObjectExt, LargeObjectTransactionExt, Mode};
 
@@ -270,7 +283,7 @@ mod test {
         let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         match conn.delete_large_object(0) {
             Ok(()) => panic!("unexpected success"),
-            Err(Error::Db(ref e)) if e.code == SqlState::UndefinedObject => {}
+            Err(ref e) if e.code() == Some(&UNDEFINED_OBJECT) => {}
             Err(e) => panic!("unexpected error: {:?}", e),
         }
     }
@@ -281,7 +294,7 @@ mod test {
         let trans = conn.transaction().unwrap();
         match trans.open_large_object(0, Mode::Read) {
             Ok(_) => panic!("unexpected success"),
-            Err(Error::Db(ref e)) if e.code == SqlState::UndefinedObject => {}
+            Err(ref e) if e.code() == Some(&UNDEFINED_OBJECT) => {}
             Err(e) => panic!("unexpected error: {:?}", e),
         };
     }
