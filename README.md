@@ -1,10 +1,10 @@
 # rust-postgres-large-object
 
-A crate providing access to the Postgres large object API.
-
-[![Build Status](https://travis-ci.org/sfackler/rust-postgres-large-object.svg?branch=master)](https://travis-ci.org/sfackler/rust-postgres-large-object)
+[![CircleCI](https://circleci.com/gh/sfackler/rust-postgres-large-object.svg?style=shield)](https://circleci.com/gh/sfackler/rust-postgres-large-object)
 
 [Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.5.1/postgres_large_object)
+
+A crate providing access to the Postgres large object API.
 
 # Example
 
