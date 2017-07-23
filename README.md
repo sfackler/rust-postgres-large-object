@@ -2,7 +2,7 @@
 
 [![CircleCI](https://circleci.com/gh/sfackler/rust-postgres-large-object.svg?style=shield)](https://circleci.com/gh/sfackler/rust-postgres-large-object)
 
-[Documentation](https://sfackler.github.io/rust-postgres-large-object/doc/v0.5.1/postgres_large_object)
+[Documentation](https://docs.rs/postgres_large_object)
 
 A crate providing access to the Postgres large object API.
 
