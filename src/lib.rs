@@ -97,9 +97,7 @@ pub trait LargeObjectTransactionExt {
 impl<'conn> LargeObjectTransactionExt for Transaction<'conn> {
     fn open_large_object<'a>(&'a self, oid: Oid, mode: Mode) -> Result<LargeObject<'a>> {
         let version = self.connection().parameter("server_version").unwrap();
-        let mut version = version.split('.');
-        let major: i32 = version.next().unwrap().parse().unwrap();
-        let minor: i32 = version.next().unwrap().parse().unwrap();
+        let (major, minor) = parse_version(&version);
         let has_64 = major > 9 || (major == 9 && minor >= 3);
 
         let stmt = self.prepare_cached("SELECT pg_catalog.lo_open($1, $2)")?;
@@ -264,12 +262,20 @@ impl<'a> io::Seek for LargeObject<'a> {
     }
 }
 
+fn parse_version(version: &str) -> (i32, i32) {
+    let version = version.split(' ').next().unwrap();
+    let mut version = version.split('.');
+    let major: i32 = version.next().unwrap().parse().unwrap();
+    let minor: i32 = version.next().unwrap().parse().unwrap();
+    (major, minor)
+}
+
 #[cfg(test)]
 mod test {
     use postgres::{Connection, TlsMode};
     use postgres::error::UNDEFINED_OBJECT;
 
-    use {LargeObjectExt, LargeObjectTransactionExt, Mode};
+    use {LargeObjectExt, LargeObjectTransactionExt, Mode, parse_version};
 
     #[test]
     fn test_create_delete() {
@@ -378,5 +384,14 @@ mod test {
         buf.clear();
         lo.read_to_end(&mut buf).unwrap();
         assert_eq!(buf, b"hello\0\0\0\0\0");
+    }
+
+    #[test]
+    fn test_parse_version() {
+        let version = parse_version("10.3 (Debian 10.3-1.pgdg90+1)");
+        assert_eq!(version, (10, 3));
+
+        let version = parse_version("9.5");
+        assert_eq!(version, (9, 5));
     }
 }
