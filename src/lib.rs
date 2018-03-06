@@ -30,11 +30,11 @@
 //!     io::copy(&mut large_object, &mut file).unwrap();
 //! }
 //! ```
-#![doc(html_root_url="https://docs.rs/postgres_large_object/0.7.0")]
+#![doc(html_root_url = "https://docs.rs/postgres_large_object/0.7")]
 
 extern crate postgres;
 
-use postgres::{Result, GenericConnection};
+use postgres::{GenericConnection, Result};
 use postgres::transaction::Transaction;
 use postgres::types::Oid;
 use std::cmp;
@@ -150,25 +150,21 @@ impl<'a> LargeObject<'a> {
     /// null bytes to the specified size.
     pub fn truncate(&mut self, len: i64) -> Result<()> {
         if self.has_64 {
-            let stmt = self.trans.prepare_cached(
-                "SELECT pg_catalog.lo_truncate64($1, $2)",
-            )?;
+            let stmt = self.trans
+                .prepare_cached("SELECT pg_catalog.lo_truncate64($1, $2)")?;
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         } else {
             let len = if len <= i32::max_value() as i64 {
                 len as i32
             } else {
-                return Err(
-                    io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "The database does not support objects larger \
-                                                     than 2GB",
-                    ).into(),
-                );
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "The database does not support objects larger \
+                     than 2GB",
+                ).into());
             };
-            let stmt = self.trans.prepare_cached(
-                "SELECT pg_catalog.lo_truncate($1, $2)",
-            )?;
+            let stmt = self.trans
+                .prepare_cached("SELECT pg_catalog.lo_truncate($1, $2)")?;
             stmt.execute(&[&self.fd, &len]).map(|_| ())
         }
     }
@@ -194,9 +190,8 @@ impl<'a> LargeObject<'a> {
 
 impl<'a> io::Read for LargeObject<'a> {
     fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
-        let stmt = self.trans.prepare_cached(
-            "SELECT pg_catalog.loread($1, $2)",
-        )?;
+        let stmt = self.trans
+            .prepare_cached("SELECT pg_catalog.loread($1, $2)")?;
         let cap = cmp::min(buf.len(), i32::MAX as usize) as i32;
         let rows = stmt.query(&[&self.fd, &cap])?;
         buf.write(rows.get(0).get_bytes(0).unwrap())
@@ -205,9 +200,8 @@ impl<'a> io::Read for LargeObject<'a> {
 
 impl<'a> io::Write for LargeObject<'a> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let stmt = self.trans.prepare_cached(
-            "SELECT pg_catalog.lowrite($1, $2)",
-        )?;
+        let stmt = self.trans
+            .prepare_cached("SELECT pg_catalog.lowrite($1, $2)")?;
         let cap = cmp::min(buf.len(), i32::MAX as usize);
         stmt.execute(&[&self.fd, &&buf[..cap]])?;
         Ok(cap)
@@ -237,9 +231,8 @@ impl<'a> io::Seek for LargeObject<'a> {
         };
 
         if self.has_64 {
-            let stmt = self.trans.prepare_cached(
-                "SELECT pg_catalog.lo_lseek64($1, $2, $3)",
-            )?;
+            let stmt = self.trans
+                .prepare_cached("SELECT pg_catalog.lo_lseek64($1, $2, $3)")?;
             let rows = stmt.query(&[&self.fd, &pos, &kind])?;
             let pos: i64 = rows.iter().next().unwrap().get(0);
             Ok(pos as u64)
@@ -252,9 +245,8 @@ impl<'a> io::Seek for LargeObject<'a> {
                     "cannot seek more than 2^31 bytes",
                 ));
             };
-            let stmt = self.trans.prepare_cached(
-                "SELECT pg_catalog.lo_lseek($1, $2, $3)",
-            )?;
+            let stmt = self.trans
+                .prepare_cached("SELECT pg_catalog.lo_lseek($1, $2, $3)")?;
             let rows = stmt.query(&[&self.fd, &pos, &kind])?;
             let pos: i32 = rows.iter().next().unwrap().get(0);
             Ok(pos as u64)
@@ -275,7 +267,7 @@ mod test {
     use postgres::{Connection, TlsMode};
     use postgres::error::UNDEFINED_OBJECT;
 
-    use {LargeObjectExt, LargeObjectTransactionExt, Mode, parse_version};
+    use {parse_version, LargeObjectExt, LargeObjectTransactionExt, Mode};
 
     #[test]
     fn test_create_delete() {
@@ -316,7 +308,7 @@ mod test {
 
     #[test]
     fn test_write_read() {
-        use std::io::{Write, Read};
+        use std::io::{Read, Write};
 
         let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
@@ -331,7 +323,7 @@ mod test {
 
     #[test]
     fn test_seek_tell() {
-        use std::io::{Write, Read, Seek, SeekFrom};
+        use std::io::{Read, Seek, SeekFrom, Write};
 
         let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
@@ -366,7 +358,7 @@ mod test {
 
     #[test]
     fn test_truncate() {
-        use std::io::{Seek, SeekFrom, Write, Read};
+        use std::io::{Read, Seek, SeekFrom, Write};
 
         let conn = Connection::connect("postgres://postgres@localhost", TlsMode::None).unwrap();
         let trans = conn.transaction().unwrap();
